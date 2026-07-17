@@ -1,0 +1,141 @@
+#include <stdio.h>
+#include <string.h>
+
+#define MAX_ALUNOS 50
+#define MAX_DISCIPLINAS 20
+
+typedef struct {
+    int matricula;
+    char nome[50];
+} Aluno;
+
+typedef struct {
+    int codigo;
+    char nome[50];
+} Disciplina;
+
+Aluno alunos[MAX_ALUNOS];
+Disciplina disciplinas[MAX_DISCIPLINAS];
+float notas[MAX_ALUNOS][MAX_DISCIPLINAS];
+
+int qtdAlunos = 0;
+int qtdDisciplinas = 0;
+
+void cadastrarAluno() {
+    printf("\nMatricula: ");
+    scanf("%d", &alunos[qtdAlunos].matricula);
+
+    printf("Nome: ");
+    scanf(" %[^\n]", alunos[qtdAlunos].nome);
+
+    qtdAlunos++;
+}
+
+void cadastrarDisciplina() {
+    printf("\nCodigo: ");
+    scanf("%d", &disciplinas[qtdDisciplinas].codigo);
+
+    printf("Nome: ");
+    scanf(" %[^\n]", disciplinas[qtdDisciplinas].nome);
+
+    qtdDisciplinas++;
+}
+
+void matricularAluno() {
+    int aluno, disciplina;
+
+    printf("\nIndice do aluno (0 a %d): ", qtdAlunos - 1);
+    scanf("%d", &aluno);
+
+    printf("Indice da disciplina (0 a %d): ", qtdDisciplinas - 1);
+    scanf("%d", &disciplina);
+
+    printf("Aluno matriculado com sucesso!\n");
+}
+
+void lancarNota() {
+    int aluno, disciplina;
+
+    printf("\nIndice do aluno: ");
+    scanf("%d", &aluno);
+
+    printf("Indice da disciplina: ");
+    scanf("%d", &disciplina);
+
+    printf("Nota: ");
+    scanf("%f", &notas[aluno][disciplina]);
+}
+
+void calcularMedia() {
+    int aluno;
+    float soma = 0;
+
+    printf("\nIndice do aluno: ");
+    scanf("%d", &aluno);
+
+    for (int i = 0; i < qtdDisciplinas; i++)
+        soma += notas[aluno][i];
+
+    printf("Media: %.2f\n", soma / qtdDisciplinas);
+}
+
+void relatorio() {
+    printf("\n===== RELATORIO =====\n");
+
+    for (int i = 0; i < qtdAlunos; i++) {
+        printf("\nAluno: %s\n", alunos[i].nome);
+        printf("Matricula: %d\n", alunos[i].matricula);
+
+        for (int j = 0; j < qtdDisciplinas; j++) {
+            printf("%s - Nota: %.1f\n",
+                   disciplinas[j].nome,
+                   notas[i][j]);
+        }
+    }
+}
+
+int main() {
+    int op;
+
+    do {
+        printf("\n===== SISTEMA ACADEMICO =====\n");
+        printf("1 - Cadastrar Aluno\n");
+        printf("2 - Cadastrar Disciplina\n");
+        printf("3 - Matricular Aluno\n");
+        printf("4 - Lancar Nota\n");
+        printf("5 - Calcular Media\n");
+        printf("6 - Relatorio\n");
+        printf("0 - Sair\n");
+        printf("Opcao: ");
+        scanf("%d", &op);
+
+        switch(op) {
+            case 1:
+                cadastrarAluno();
+                break;
+            case 2:
+                cadastrarDisciplina();
+                break;
+            case 3:
+                matricularAluno();
+                break;
+            case 4:
+                lancarNota();
+                break;
+            case 5:
+                calcularMedia();
+                break;
+            case 6:
+                relatorio();
+                break;
+            case 0:
+                printf("Encerrando...\n");
+                break;
+            default:
+                printf("Opcao invalida!\n");
+        }
+
+    } while(op != 0);
+
+    return 0;
+}
