@@ -1,0 +1,362 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define MAX_ALUNOS 10
+#define MAX_DISCIPLINAS 5
+#define MAX_NOME 50
+
+// --- CORES ANSI PARA O TERMINAL ---
+#define COR_RESET   "\033[0m"
+#define COR_TITULO  "\033[1;34m" // Azul Negrito
+#define COR_SUCESSO "\033[1;32m" // Verde
+#define COR_ERRO    "\033[1;31m" // Vermelho
+#define COR_AVISO   "\033[1;33m" // Amarelo
+#define COR_DESTINU "\033[1;36m" // Ciano
+
+// --- ESTRUTURAS ---
+typedef struct {
+    int id;
+    char nome[MAX_NOME];
+} Aluno;
+
+typedef struct {
+    int id;
+    char nome[MAX_NOME];
+} Disciplina;
+
+// --- VARIÁVEIS GLOBALI (ESTADO) ---
+Aluno alunos[MAX_ALUNOS];
+Disciplina disciplinas[MAX_DISCIPLINAS];
+
+// Matriz 2D: Linha = Aluno (ID), Coluna = Disciplina (ID)
+// -1.0f = Não Matriculado
+float notas[MAX_ALUNOS][MAX_DISCIPLINAS];
+
+int totalAlunos = 0;
+int totalDisciplinas = 0;
+
+// --- PROTÓTIPOS ---
+void limpaTela();
+void pausa();
+void inicializarSistema();
+void exibirCabecalho(const char *titulo);
+
+void cadastrarAluno();
+void cadastrarDisciplina();
+void matricularAluno();
+void lancarNotas();
+void calcularMedia();
+void listarBoletim();
+
+// --- FUNÇÃO PRINCIPAL ---
+int main() {
+    int opcao;
+    inicializarSistema();
+
+    do {
+        limpaTela();
+        exibirCabecalho("MENU PRINCIPAL");
+        
+        printf("  [1] Cadastrar Aluno\n");
+        printf("  [2] Cadastrar Disciplina\n");
+        printf("  [3] Matricular Aluno\n");
+        printf("  [4] Lançar Notas\n");
+        printf("  [5] Calcular Média de Aluno\n");
+        printf("  [6] Exibir Boletim Geral / Matriz\n");
+        printf("  [0] Sair do Sistema\n");
+        printf("----------------------------------------\n");
+        printf("Escolha uma opção: ");
+        
+        if (scanf("%d", &opcao) != 1) {
+            opcao = -1;
+        }
+        getchar(); // Limpa o '\n' do buffer
+
+        switch (opcao) {
+            case 1: cadastrarAluno(); break;
+            case 2: cadastrarDisciplina(); break;
+            case 3: matricularAluno(); break;
+            case 4: lancarNotas(); break;
+            case 5: calcularMedia(); break;
+            case 6: listarBoletim(); break;
+            case 0: 
+                limpaTela();
+                printf(COR_SUCESSO "\nSaindo do Sistema Acadêmico... Até logo!\n\n" COR_RESET);
+                break;
+            default:
+                printf(COR_ERRO "\n[Opção Inválida!] Tente novamente.\n" COR_RESET);
+                pausa();
+                break;
+        }
+    } while (opcao != 0);
+
+    return 0;
+}
+
+// --- FUNÇÕES UTILITÁRIAS ---
+
+void limpaTela() {
+    // Comando compatível com Windows e Linux/macOS
+    #ifdef _WIN32
+        system("cls");
+    #else
+        system("clear");
+    #endif
+}
+
+void pausa() {
+    printf(COR_AVISO "\nPressione ENTER para continuar..." COR_RESET);
+    getchar();
+}
+
+void inicializarSistema() {
+    for (int i = 0; i < MAX_ALUNOS; i++) {
+        for (int j = 0; j < MAX_DISCIPLINAS; j++) {
+            notas[i][j] = -1.0f;
+        }
+    }
+}
+
+void exibirCabecalho(const char *titulo) {
+    printf(COR_TITULO "========================================\n");
+    printf("         SISTEMA ACADÊMICO (TUI)        \n");
+    printf("========================================\n" COR_RESET);
+    printf(COR_DESTINU " >>> %s <<<\n" COR_RESET, titulo);
+    printf("----------------------------------------\n");
+}
+
+// --- IMPLEMENTAÇÃO DOS MÓDULOS ---
+
+void cadastrarAluno() {
+    limpaTela();
+    exibirCabecalho("CADASTRO DE ALUNO");
+
+    if (totalAlunos >= MAX_ALUNOS) {
+        printf(COR_ERRO "[Erro] Limite máximo de alunos (%d) atingido!\n" COR_RESET, MAX_ALUNOS);
+        pausa();
+        return;
+    }
+
+    alunos[totalAlunos].id = totalAlunos;
+    printf("Nome do Aluno: ");
+    fgets(alunos[totalAlunos].nome, MAX_NOME, stdin);
+    alunos[totalAlunos].nome[strcspn(alunos[totalAlunos].nome, "\n")] = '\0'; // Remove o \n
+
+    if (strlen(alunos[totalAlunos].nome) > 0) {
+        printf(COR_SUCESSO "\n-> Aluno '%s' cadastrado com ID [%d]!\n" COR_RESET, alunos[totalAlunos].nome, totalAlunos);
+        totalAlunos++;
+    } else {
+        printf(COR_ERRO "\n[Erro] O nome do aluno não pode ser vazio.\n" COR_RESET);
+    }
+
+    pausa();
+}
+
+void cadastrarDisciplina() {
+    limpaTela();
+    exibirCabecalho("CADASTRO DE DISCIPLINA");
+
+    if (totalDisciplinas >= MAX_DISCIPLINAS) {
+        printf(COR_ERRO "[Erro] Limite máximo de disciplinas (%d) atingido!\n" COR_RESET, MAX_DISCIPLINAS);
+        pausa();
+        return;
+    }
+
+    disciplinas[totalDisciplinas].id = totalDisciplinas;
+    printf("Nome da Disciplina: ");
+    fgets(disciplinas[totalDisciplinas].nome, MAX_NOME, stdin);
+    disciplinas[totalDisciplinas].nome[strcspn(disciplinas[totalDisciplinas].nome, "\n")] = '\0';
+
+    if (strlen(disciplinas[totalDisciplinas].nome) > 0) {
+        printf(COR_SUCESSO "\n-> Disciplina '%s' cadastrada com ID [%d]!\n" COR_RESET, disciplinas[totalDisciplinas].nome, totalDisciplinas);
+        totalDisciplinas++;
+    } else {
+        printf(COR_ERRO "\n[Erro] O nome da disciplina não pode ser vazio.\n" COR_RESET);
+    }
+
+    pausa();
+}
+
+void matricularAluno() {
+    limpaTela();
+    exibirCabecalho("MATRICULAR ALUNO");
+
+    if (totalAlunos == 0 || totalDisciplinas == 0) {
+        printf(COR_ERRO "[Erro] Cadastre pelo menos 1 aluno e 1 disciplina primeiro.\n" COR_RESET);
+        pausa();
+        return;
+    }
+
+    // Listagem para orientação
+    printf(COR_AVISO "Alunos Disponíveis:\n" COR_RESET);
+    for (int i = 0; i < totalAlunos; i++) {
+        printf("  ID [%d] - %s\n", alunos[i].id, alunos[i].nome);
+    }
+
+    printf(COR_AVISO "\nDisciplinas Disponíveis:\n" COR_RESET);
+    for (int j = 0; j < totalDisciplinas; j++) {
+        printf("  ID [%d] - %s\n", disciplinas[j].id, disciplinas[j].nome);
+    }
+    printf("----------------------------------------\n");
+
+    int idAluno, idDisc;
+    printf("Digite o ID do Aluno: ");
+    scanf("%d", &idAluno);
+    printf("Digite o ID da Disciplina: ");
+    scanf("%d", &idDisc);
+    getchar();
+
+    if (idAluno >= 0 && idAluno < totalAlunos && idDisc >= 0 && idDisc < totalDisciplinas) {
+        notas[idAluno][idDisc] = 0.0f; // Inicializa matriculado (Nota 0.0)
+        printf(COR_SUCESSO "\n-> '%s' matriculado em '%s' com sucesso!\n" COR_RESET, alunos[idAluno].nome, disciplinas[idDisc].nome);
+    } else {
+        printf(COR_ERRO "\n[Erro] ID de Aluno ou Disciplina inválido!\n" COR_RESET);
+    }
+
+    pausa();
+}
+
+void lancarNotas() {
+    limpaTela();
+    exibirCabecalho("LANÇAMENTO DE NOTAS");
+
+    if (totalAlunos == 0 || totalDisciplinas == 0) {
+        printf(COR_ERRO "[Erro] Não há alunos ou disciplinas para lançar notas.\n" COR_RESET);
+        pausa();
+        return;
+    }
+
+    int idAluno, idDisc;
+    float nota;
+
+    printf("ID do Aluno: ");
+    scanf("%d", &idAluno);
+    printf("ID da Disciplina: ");
+    scanf("%d", &idDisc);
+
+    if (idAluno >= 0 && idAluno < totalAlunos && idDisc >= 0 && idDisc < totalDisciplinas) {
+        if (notas[idAluno][idDisc] == -1.0f) {
+            printf(COR_ERRO "\n[Aviso] O aluno não está matriculado nessa disciplina!\n" COR_RESET);
+            getchar();
+            pausa();
+            return;
+        }
+
+        printf("Digite a nota (0.0 a 10.0): ");
+        scanf("%f", &nota);
+        getchar();
+
+        if (nota >= 0.0f && nota <= 10.0f) {
+            notas[idAluno][idDisc] = nota;
+            printf(COR_SUCESSO "\n-> Nota %.2f lançada com sucesso!\n" COR_RESET, nota);
+        } else {
+            printf(COR_ERRO "\n[Erro] Nota inválida! Deve ser entre 0.0 e 10.0.\n" COR_RESET);
+        }
+    } else {
+        printf(COR_ERRO "\n[Erro] IDs informados não existem.\n" COR_RESET);
+        getchar();
+    }
+
+    pausa();
+}
+
+void calcularMedia() {
+    limpaTela();
+    exibirCabecalho("CÁLCULO DE MÉDIA GERAL");
+
+    if (totalAlunos == 0) {
+        printf(COR_ERRO "[Erro] Nenhum aluno cadastrado.\n" COR_RESET);
+        pausa();
+        return;
+    }
+
+    int idAluno;
+    printf("Digite o ID do Aluno: ");
+    scanf("%d", &idAluno);
+    getchar();
+
+    if (idAluno >= 0 && idAluno < totalAlunos) {
+        float soma = 0.0f;
+        int qtdDisciplinas = 0;
+
+        for (int j = 0; j < totalDisciplinas; j++) {
+            if (notas[idAluno][j] != -1.0f) {
+                soma += notas[idAluno][j];
+                qtdDisciplinas++;
+            }
+        }
+
+        if (qtdDisciplinas > 0) {
+            float media = soma / qtdDisciplinas;
+            printf("\nAluno: " COR_DESTINU "%s" COR_RESET "\n", alunos[idAluno].nome);
+            printf("Disciplinas cursadas: %d\n", qtdDisciplinas);
+            printf("Média Geral: ");
+            if (media >= 6.0f) {
+                printf(COR_SUCESSO "%.2f (Aprovado)\n" COR_RESET, media);
+            } else {
+                printf(COR_ERRO "%.2f (Atenção / Reprovado)\n" COR_RESET, media);
+            }
+        } else {
+            printf(COR_AVISO "\n-> O aluno %s não possui matrículas ativas.\n" COR_RESET, alunos[idAluno].nome);
+        }
+    } else {
+        printf(COR_ERRO "\n[Erro] ID de Aluno não encontrado.\n" COR_RESET);
+    }
+
+    pausa();
+}
+
+void listarBoletim() {
+    limpaTela();
+    exibirCabecalho("BOLETIM GERAL (MATRIZ 2D)");
+
+    if (totalAlunos == 0 || totalDisciplinas == 0) {
+        printf(COR_ERRO "Cadastre alunos e disciplinas para exibir a matriz.\n" COR_RESET);
+        pausa();
+        return;
+    }
+
+    // Imprime Cabeçalho da Tabela
+    printf("%-15s |", "Aluno");
+    for (int j = 0; j < totalDisciplinas; j++) {
+        printf(" %-10s |", disciplinas[j].nome);
+    }
+    printf(" " COR_DESTINU "%-7s" COR_RESET " |", "Média");
+    printf("\n----------------------------------------------------------------------\n");
+
+    // Imprime Linhas da Matriz 2D
+    for (int i = 0; i < totalAlunos; i++) {
+        printf("%-15s |", alunos[i].nome);
+
+        float soma = 0.0f;
+        int count = 0;
+
+        for (int j = 0; j < totalDisciplinas; j++) {
+            float n = notas[i][j];
+            if (n == -1.0f) {
+                printf(" %-10s |", "-");
+            } else {
+                printf(" %-10.1f |", n);
+                soma += n;
+                count++;
+            }
+        }
+
+        // Média do Aluno na última coluna
+        if (count > 0) {
+            float media = soma / count;
+            if (media >= 6.0f) {
+                printf(COR_SUCESSO " %-7.1f" COR_RESET " |", media);
+            } else {
+                printf(COR_ERRO " %-7.1f" COR_RESET " |", media);
+            }
+        } else {
+            printf(" %-7s |", "-");
+        }
+        printf("\n");
+    }
+
+    printf("----------------------------------------------------------------------\n");
+    pausa();
+}
