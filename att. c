@@ -1,141 +1,340 @@
+#include "raylib.h"
 #include <stdio.h>
 #include <string.h>
 
-#define MAX_ALUNOS 50
-#define MAX_DISCIPLINAS 20
+#define MAX_ALUNOS 10
+#define MAX_DISCIPLINAS 5
+#define MAX_NOME 30
 
+// --- Estruturas de Dados ---
 typedef struct {
-    int matricula;
-    char nome[50];
+    int id;
+    char nome[MAX_NOME];
 } Aluno;
 
 typedef struct {
-    int codigo;
-    char nome[50];
+    int id;
+    char nome[MAX_NOME];
 } Disciplina;
 
+// --- Estado do Sistema ---
 Aluno alunos[MAX_ALUNOS];
 Disciplina disciplinas[MAX_DISCIPLINAS];
-float notas[MAX_ALUNOS][MAX_DISCIPLINAS];
+float notas[MAX_ALUNOS][MAX_DISCIPLINAS]; // Matriz 2D (-1.0 = Não matriculado)
 
-int qtdAlunos = 0;
-int qtdDisciplinas = 0;
+int totalAlunos = 0;
+int totalDisciplinas = 0;
 
-void cadastrarAluno() {
-    printf("\nMatricula: ");
-    scanf("%d", &alunos[qtdAlunos].matricula);
+// Estados da Interface
+typedef enum { MENU, CAD_ALUNO, CAD_DISCIPLINA, MATRICULA, NOTAS, BOLETIM } Tela;
+Tela telaAtual = MENU;
 
-    printf("Nome: ");
-    scanf(" %[^\n]", alunos[qtdAlunos].nome);
+// Buffers de entrada para os campos de texto
+char bufferNomeAluno[MAX_NOME] = "";
+char bufferNomeDisc[MAX_NOME] = "";
+char bufferNota[10] = "";
+int selAluno = 0;
+int selDisc = 0;
+char mensagemStatus[100] = "Sistema Inicializado.";
 
-    qtdAlunos++;
+// --- Função Helper para Botões ---
+bool DesenharBotao(Rectangle rect, const char *texto, Color corBase, Color corHover) {
+    Vector2 mousePos = GetMousePosition();
+    bool estaPorCima = CheckCollisionPointRec(mousePos, rect);
+    
+    DrawRectangleRec(rect, estaPorCima ? corHover : corBase);
+    DrawRectangleLinesEx(rect, 2, DARKGRAY);
+    
+    int fontSize = 20;
+    int textWidth = MeasureText(texto, fontSize);
+    DrawText(texto, rect.x + (rect.width - textWidth)/2, rect.y + (rect.height - fontSize)/2, fontSize, WHITE);
+    
+    return estaPorCima && IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
 }
 
-void cadastrarDisciplina() {
-    printf("\nCodigo: ");
-    scanf("%d", &disciplinas[qtdDisciplinas].codigo);
-
-    printf("Nome: ");
-    scanf(" %[^\n]", disciplinas[qtdDisciplinas].nome);
-
-    qtdDisciplinas++;
-}
-
-void matricularAluno() {
-    int aluno, disciplina;
-
-    printf("\nIndice do aluno (0 a %d): ", qtdAlunos - 1);
-    scanf("%d", &aluno);
-
-    printf("Indice da disciplina (0 a %d): ", qtdDisciplinas - 1);
-    scanf("%d", &disciplina);
-
-    printf("Aluno matriculado com sucesso!\n");
-}
-
-void lancarNota() {
-    int aluno, disciplina;
-
-    printf("\nIndice do aluno: ");
-    scanf("%d", &aluno);
-
-    printf("Indice da disciplina: ");
-    scanf("%d", &disciplina);
-
-    printf("Nota: ");
-    scanf("%f", &notas[aluno][disciplina]);
-}
-
-void calcularMedia() {
-    int aluno;
-    float soma = 0;
-
-    printf("\nIndice do aluno: ");
-    scanf("%d", &aluno);
-
-    for (int i = 0; i < qtdDisciplinas; i++)
-        soma += notas[aluno][i];
-
-    printf("Media: %.2f\n", soma / qtdDisciplinas);
-}
-
-void relatorio() {
-    printf("\n===== RELATORIO =====\n");
-
-    for (int i = 0; i < qtdAlunos; i++) {
-        printf("\nAluno: %s\n", alunos[i].nome);
-        printf("Matricula: %d\n", alunos[i].matricula);
-
-        for (int j = 0; j < qtdDisciplinas; j++) {
-            printf("%s - Nota: %.1f\n",
-                   disciplinas[j].nome,
-                   notas[i][j]);
+// --- Inicialização ---
+void InicializarMatriz() {
+    for (int i = 0; i < MAX_ALUNOS; i++) {
+        for (int j = 0; j < MAX_DISCIPLINAS; j++) {
+            notas[i][j] = -1.0f;
         }
     }
 }
 
-int main() {
-    int op;
+// ==========================================
+// DESENHO DAS TELAS
+// ==========================================
 
-    do {
-        printf("\n===== SISTEMA ACADEMICO =====\n");
-        printf("1 - Cadastrar Aluno\n");
-        printf("2 - Cadastrar Disciplina\n");
-        printf("3 - Matricular Aluno\n");
-        printf("4 - Lancar Nota\n");
-        printf("5 - Calcular Media\n");
-        printf("6 - Relatorio\n");
-        printf("0 - Sair\n");
-        printf("Opcao: ");
-        scanf("%d", &op);
+void DesenharTopBar() {
+    DrawRectangle(0, 0, 900, 60, NAVY);
+    DrawText("SISTEMA ACADÊMICO - GUI", 20, 15, 28, RAYWHITE);
+    if (telaAtual != MENU) {
+        if (DesenharBotao((Rectangle){760, 12, 120, 36}, "< Voltar", MAROON, RED)) {
+            telaAtual = MENU;
+            mensagemStatus[0] = '\0';
+        }
+    }
+}
 
-        switch(op) {
-            case 1:
-                cadastrarAluno();
-                break;
-            case 2:
-                cadastrarDisciplina();
-                break;
-            case 3:
-                matricularAluno();
-                break;
-            case 4:
-                lancarNota();
-                break;
-            case 5:
-                calcularMedia();
-                break;
-            case 6:
-                relatorio();
-                break;
-            case 0:
-                printf("Encerrando...\n");
-                break;
-            default:
-                printf("Opcao invalida!\n");
+void DesenharStatusBar() {
+    DrawRectangle(0, 560, 900, 40, LIGHTGRAY);
+    DrawText(mensagemStatus, 20, 570, 18, DARKGRAY);
+}
+
+void TelaMenu() {
+    DrawText("Painel de Controle", 320, 90, 26, DARKBLUE);
+
+    if (DesenharBotao((Rectangle){300, 140, 300, 50}, "1. Cadastrar Aluno", DARKBLUE, BLUE)) telaAtual = CAD_ALUNO;
+    if (DesenharBotao((Rectangle){300, 210, 300, 50}, "2. Cadastrar Disciplina", DARKBLUE, BLUE)) telaAtual = CAD_DISCIPLINA;
+    if (DesenharBotao((Rectangle){300, 280, 300, 50}, "3. Matricular Aluno", DARKBLUE, BLUE)) telaAtual = MATRICULA;
+    if (DesenharBotao((Rectangle){300, 350, 300, 50}, "4. Lançar Notas", DARKBLUE, BLUE)) telaAtual = NOTAS;
+    if (DesenharBotao((Rectangle){300, 420, 300, 50}, "5. Ver Boletim Geral", DARKBLUE, BLUE)) telaAtual = BOLETIM;
+}
+
+void TelaCadAluno() {
+    DrawText("Cadastro de Aluno", 50, 90, 24, DARKBLUE);
+    DrawText("Nome do Aluno:", 50, 150, 20, BLACK);
+    
+    // Campo de Texto
+    DrawRectangle(50, 180, 400, 40, RAYWHITE);
+    DrawRectangleLines(50, 180, 400, 40, BLUE);
+    DrawText(bufferNomeAluno, 60, 190, 20, BLACK);
+
+    // Captura de Teclado
+    int key = GetCharPressed();
+    while (key > 0) {
+        if ((key >= 32) && (key <= 125) && (strlen(bufferNomeAluno) < MAX_NOME - 1)) {
+            int len = strlen(bufferNomeAluno);
+            bufferNomeAluno[len] = (char)key;
+            bufferNomeAluno[len + 1] = '\0';
+        }
+        key = GetCharPressed();
+    }
+    if (IsKeyPressed(KEY_BACKSPACE)) {
+        int len = strlen(bufferNomeAluno);
+        if (len > 0) bufferNomeAluno[len - 1] = '\0';
+    }
+
+    if (DesenharBotao((Rectangle){50, 240, 180, 40}, "Salvar Aluno", LIME, GREEN)) {
+        if (strlen(bufferNomeAluno) > 0 && totalAlunos < MAX_ALUNOS) {
+            alunos[totalAlunos].id = totalAlunos;
+            strcpy(alunos[totalAlunos].nome, bufferNomeAluno);
+            totalAlunos++;
+            snprintf(mensagemStatus, sizeof(mensagemStatus), "Aluno '%s' cadastrado!", bufferNomeAluno);
+            bufferNomeAluno[0] = '\0';
+        } else {
+            strcpy(mensagemStatus, "Erro: Nome vazio ou limite atingido!");
+        }
+    }
+
+    // Lista Lateral
+    DrawText("Alunos Cadastrados:", 500, 90, 20, DARKBLUE);
+    for (int i = 0; i < totalAlunos; i++) {
+        DrawText(TextFormat("[%d] %s", alunos[i].id, alunos[i].nome), 500, 130 + (i * 25), 18, DARKGRAY);
+    }
+}
+
+void TelaCadDisciplina() {
+    DrawText("Cadastro de Disciplina", 50, 90, 24, DARKBLUE);
+    DrawText("Nome da Disciplina:", 50, 150, 20, BLACK);
+    
+    DrawRectangle(50, 180, 400, 40, RAYWHITE);
+    DrawRectangleLines(50, 180, 400, 40, BLUE);
+    DrawText(bufferNomeDisc, 60, 190, 20, BLACK);
+
+    int key = GetCharPressed();
+    while (key > 0) {
+        if ((key >= 32) && (key <= 125) && (strlen(bufferNomeDisc) < MAX_NOME - 1)) {
+            int len = strlen(bufferNomeDisc);
+            bufferNomeDisc[len] = (char)key;
+            bufferNomeDisc[len + 1] = '\0';
+        }
+        key = GetCharPressed();
+    }
+    if (IsKeyPressed(KEY_BACKSPACE)) {
+        int len = strlen(bufferNomeDisc);
+        if (len > 0) bufferNomeDisc[len - 1] = '\0';
+    }
+
+    if (DesenharBotao((Rectangle){50, 240, 180, 40}, "Salvar Disciplina", LIME, GREEN)) {
+        if (strlen(bufferNomeDisc) > 0 && totalDisciplinas < MAX_DISCIPLINAS) {
+            disciplinas[totalDisciplinas].id = totalDisciplinas;
+            strcpy(disciplinas[totalDisciplinas].nome, bufferNomeDisc);
+            totalDisciplinas++;
+            snprintf(mensagemStatus, sizeof(mensagemStatus), "Disciplina '%s' cadastrada!", bufferNomeDisc);
+            bufferNomeDisc[0] = '\0';
+        } else {
+            strcpy(mensagemStatus, "Erro: Nome vazio ou limite atingido!");
+        }
+    }
+
+    DrawText("Disciplinas Cadastradas:", 500, 90, 20, DARKBLUE);
+    for (int i = 0; i < totalDisciplinas; i++) {
+        DrawText(TextFormat("[%d] %s", disciplinas[i].id, disciplinas[i].nome), 500, 130 + (i * 25), 18, DARKGRAY);
+    }
+}
+
+void TelaMatricula() {
+    DrawText("Matricular Aluno em Disciplina", 50, 80, 24, DARKBLUE);
+
+    DrawText("Selecione o Aluno:", 50, 120, 18, BLACK);
+    for (int i = 0; i < totalAlunos; i++) {
+        Color cor = (selAluno == i) ? ORANGE : LIGHTGRAY;
+        if (DesenharBotao((Rectangle){50, (float)(150 + i * 35), 220, 30}, alunos[i].nome, cor, GOLD)) selAluno = i;
+    }
+
+    DrawText("Selecione a Disciplina:", 320, 120, 18, BLACK);
+    for (int j = 0; j < totalDisciplinas; j++) {
+        Color cor = (selDisc == j) ? ORANGE : LIGHTGRAY;
+        if (DesenharBotao((Rectangle){320, (float)(150 + j * 35), 220, 30}, disciplinas[j].nome, cor, GOLD)) selDisc = j;
+    }
+
+    if (totalAlunos > 0 && totalDisciplinas > 0) {
+        if (DesenharBotao((Rectangle){580, 200, 250, 50}, "Confirmar Matrícula", LIME, GREEN)) {
+            notas[selAluno][selDisc] = 0.0f; // Inicializa matriculado com nota 0
+            snprintf(mensagemStatus, sizeof(mensagemStatus), "%s matriculado em %s!", alunos[selAluno].nome, disciplinas[selDisc].nome);
+        }
+    } else {
+        DrawText("Cadastre alunos e disciplinas primeiro!", 580, 200, 16, RED);
+    }
+}
+
+void TelaLancarNotas() {
+    DrawText("Lançamento de Notas", 50, 80, 24, DARKBLUE);
+
+    DrawText("Aluno:", 50, 120, 18, BLACK);
+    for (int i = 0; i < totalAlunos; i++) {
+        Color cor = (selAluno == i) ? ORANGE : LIGHTGRAY;
+        if (DesenharBotao((Rectangle){50, (float)(150 + i * 35), 200, 30}, alunos[i].nome, cor, GOLD)) selAluno = i;
+    }
+
+    DrawText("Disciplina:", 280, 120, 18, BLACK);
+    for (int j = 0; j < totalDisciplinas; j++) {
+        Color cor = (selDisc == j) ? ORANGE : LIGHTGRAY;
+        if (DesenharBotao((Rectangle){280, (float)(150 + j * 35), 200, 30}, disciplinas[j].nome, cor, GOLD)) selDisc = j;
+    }
+
+    DrawText("Nota (0.0 a 10.0):", 520, 120, 18, BLACK);
+    DrawRectangle(520, 150, 150, 40, RAYWHITE);
+    DrawRectangleLines(520, 150, 150, 40, BLUE);
+    DrawText(bufferNota, 530, 160, 20, BLACK);
+
+    int key = GetCharPressed();
+    while (key > 0) {
+        if (((key >= '0' && key <= '9') || key == '.') && (strlen(bufferNota) < 5)) {
+            int len = strlen(bufferNota);
+            bufferNota[len] = (char)key;
+            bufferNota[len + 1] = '\0';
+        }
+        key = GetCharPressed();
+    }
+    if (IsKeyPressed(KEY_BACKSPACE)) {
+        int len = strlen(bufferNota);
+        if (len > 0) bufferNota[len - 1] = '\0';
+    }
+
+    if (totalAlunos > 0 && totalDisciplinas > 0) {
+        if (DesenharBotao((Rectangle){520, 210, 150, 40}, "Salvar Nota", LIME, GREEN)) {
+            if (notas[selAluno][selDisc] == -1.0f) {
+                strcpy(mensagemStatus, "Erro: Aluno não está matriculado nesta matéria!");
+            } else {
+                float val = (float)atof(bufferNota);
+                if (val >= 0.0f && val <= 10.0f) {
+                    notas[selAluno][selDisc] = val;
+                    snprintf(mensagemStatus, sizeof(mensagemStatus), "Nota %.1f salva com sucesso!", val);
+                    bufferNota[0] = '\0';
+                } else {
+                    strcpy(mensagemStatus, "Erro: Nota deve ser de 0.0 a 10.0");
+                }
+            }
+        }
+    }
+}
+
+void TelaBoletim() {
+    DrawText("Matriz / Boletim Geral", 50, 80, 24, DARKBLUE);
+
+    if (totalAlunos == 0 || totalDisciplinas == 0) {
+        DrawText("Cadastre alunos e disciplinas para visualizar a tabela.", 50, 150, 20, RED);
+        return;
+    }
+
+    int startX = 200;
+    int startY = 130;
+    int cellW = 110;
+    int cellH = 35;
+
+    // Cabeçalho das Disciplinas
+    for (int j = 0; j < totalDisciplinas; j++) {
+        DrawRectangle(startX + (j * cellW), startY, cellW - 2, cellH, DARKBLUE);
+        DrawText(disciplinas[j].nome, startX + (j * cellW) + 5, startY + 8, 14, WHITE);
+    }
+    DrawRectangle(startX + (totalDisciplinas * cellW), startY, cellW - 2, cellH, DARKGREEN);
+    DrawText("Média", startX + (totalDisciplinas * cellW) + 15, startY + 8, 16, WHITE);
+
+    // Linhas dos Alunos
+    for (int i = 0; i < totalAlunos; i++) {
+        int posY = startY + ((i + 1) * cellH);
+        
+        // Nome do Aluno
+        DrawRectangle(50, posY, 145, cellH - 2, LIGHTGRAY);
+        DrawText(alunos[i].nome, 55, posY + 8, 16, BLACK);
+
+        float soma = 0;
+        int count = 0;
+
+        // Células da Matriz
+        for (int j = 0; j < totalDisciplinas; j++) {
+            float n = notas[i][j];
+            Color bg = WHITE;
+            char valStr[10] = "-";
+
+            if (n >= 0.0f) {
+                snprintf(valStr, sizeof(valStr), "%.1f", n);
+                soma += n;
+                count++;
+                bg = (n >= 6.0f) ? LIGHTGRAY : PINK;
+            }
+
+            DrawRectangle(startX + (j * cellW), posY, cellW - 2, cellH - 2, bg);
+            DrawText(valStr, startX + (j * cellW) + 35, posY + 8, 16, BLACK);
         }
 
-    } while(op != 0);
+        // Média Geral
+        float media = (count > 0) ? (soma / count) : 0.0f;
+        DrawRectangle(startX + (totalDisciplinas * cellW), posY, cellW - 2, cellH - 2, RAYWHITE);
+        DrawText(TextFormat("%.1f", media), startX + (totalDisciplinas * cellW) + 30, posY + 8, 16, (media >= 6.0f) ? DARKGREEN : RED);
+    }
+}
 
+// ==========================================
+// MAIN (LOOP PRINCIPAL DE RENDERIZAÇÃO)
+// ==========================================
+int main() {
+    InitWindow(900, 600, "Sistema Acadêmico GUI - C / Raylib");
+    SetTargetFPS(60);
+
+    InicializarMatriz();
+
+    while (!WindowShouldClose()) {
+        BeginDrawing();
+        ClearBackground(RAYWHITE);
+
+        DesenharTopBar();
+
+        switch (telaAtual) {
+            case MENU: TelaMenu(); break;
+            case CAD_ALUNO: TelaCadAluno(); break;
+            case CAD_DISCIPLINA: TelaCadDisciplina(); break;
+            case MATRICULA: TelaMatricula(); break;
+            case NOTAS: TelaLancarNotas(); break;
+            case BOLETIM: TelaBoletim(); break;
+        }
+
+        DesenharStatusBar();
+        EndDrawing();
+    }
+
+    CloseWindow();
     return 0;
 }
